@@ -24,7 +24,7 @@ class CVController extends Controller
     }
 
     public function store(Request $request): RedirectResponse {
-        $request->validate([
+        /*$request->validate([
             'name' => 'required|min:2|max:50|string',
             'surname' => 'required|min:2|max:70|string',
             'tel' => 'required|min:2|max:20|string',
@@ -35,47 +35,35 @@ class CVController extends Controller
             'education' => 'required|min:40',
             'skills' => 'required|min:40',
             'image' => 'nullable|image',
-        ]);
+        ]);*/
+
+        $result = false;
+        $cv = new CV($request->all());
 
         try {
-            $cv = new CV([
-                'name'       => $request->name,
-                'surname'    => $request->surname,
-                'tel'        => $request->tel,
-                'email'      => $request->email,
-                'birthdate'  => $request->birthdate,
-                'avg_grade'  => $request->avg_grade,
-                'experience' => $request->experience,
-                'education'  => $request->education,
-                'skills'     => $request->skills,
-            ]);
 
-            $cv->save();
+            $result = $cv->save();
+            $path = $this->upload($request, $cv->id);
+            $cv->path = $path;
+            $result = $cv->save();
+            $message = 'The CV has been added!';
+    
 
-            if ($request->hasFile('image') && $request->file('image')->isValid()) {
-                $image = $request->file('image');
-                $maxSize = 1024 * 1024;
-                
-                if($image->getSize() > $maxSize) {
-                    throw new \Exception('The image is too big. Max size: 1MB');
-                }
-
-                $cv->path = $this->upload($request, $cv->id);
-                $cv->save();
-            }
-
-            return redirect()->route('main.index')
-                ->with('general', 'A new curriculum has been added.');
-
+        } catch(UniqueConstraintViolationException $e) {
+            $message = 'The email is already registerd.';
         } catch(QueryException $e) {
-            $message = str_contains($e->getMessage(), 'Duplicate entry')
-                ? 'The email is already registered.'
-                : 'Database error: ' . $e->getMessage();
-
-            return back()->withInput()->withErrors(['general' => $message]);
+            $message = 'Any of the entries is null.';
         } catch(\Exception $e) {
-            return back()->withInput()
-                ->withErrors(['general' => 'Unexpected Error: ' . $e->getMessage()]);
+            $message = 'Unexpected Error: Please contact the administrator';
+        }
+
+        $messageArray = [
+            'general' => $message
+        ];
+        if($result) {
+            return redirect()->route('main.index')->with($messageArray);
+        } else {
+            return back()->withInput()->withErrors($messageArray);
         }
     }
 
@@ -99,7 +87,7 @@ class CVController extends Controller
     }
 
     function update(Request $request, CV $cv) {
-        $validatedData = $request->validate([
+        /*$validatedData = $request->validate([
             'name'       => 'required|min:4|max:50|string',
             'surname'    => 'required|min:4|max:70|string',
             'tel'        => 'required|min:6|max:20|string',
@@ -110,7 +98,7 @@ class CVController extends Controller
             'education'  => 'required|min:40',
             'skills'     => 'required|min:40',
             'image'      => 'nullable|image|max:1024',
-        ]);
+        ]);*/
         $result = false;
         if ($request->deleteimage == 'delete') {
             Storage::disk('public')->delete('images/' . $cv->path);
